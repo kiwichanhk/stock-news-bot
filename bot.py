@@ -5,32 +5,30 @@ import requests
 from dotenv import load_dotenv
 from longport.openapi import QuoteContext, Config
 
-# 載入 .env 檔案中的環境變數
+# 載入環境變數
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-LB_APP_KEY = os.getenv("LONGBRIDGE_APP_KEY")
-LB_APP_SECRET = os.getenv("LONGBRIDGE_APP_SECRET")
-LB_TOKEN = os.getenv("LONGBRIDGE_ACCESS_TOKEN")
+LB_CLIENT_ID = os.getenv("LONGBRIDGE_CLIENT_ID")
+LB_ACCESS_TOKEN = os.getenv("LONGBRIDGE_ACCESS_TOKEN")
 
-# 設定 Discord 機器人權限 (Intents)
+# 設定 Discord 機器人權限
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# 設定長橋連線
+# 設定長橋連線 (使用全新的 OAuth 2.0 驗證)
 try:
-    lb_config = Config(app_key=LB_APP_KEY, app_secret=LB_APP_SECRET, access_token=LB_TOKEN)
+    lb_config = Config(app_key=LB_CLIENT_ID, access_token=LB_ACCESS_TOKEN)
     ctx = QuoteContext(lb_config)
-    print("✅ 長橋 API 連線設定完成")
+    print("✅ 長橋 OpenAPI 連線設定完成")
 except Exception as e:
     print(f"❌ 長橋 API 設定失敗: {e}")
 
 def get_realtime_price(symbol):
     """透過長橋 API 獲取即時報價"""
     try:
-        # 長橋美股代碼通常需要加上 .US，例如 AAPL.US
         formatted_symbol = f"{symbol.upper()}.US" if not symbol.endswith('.US') else symbol.upper()
         quote = ctx.quote([formatted_symbol])
         if quote:
@@ -96,13 +94,9 @@ async def analyze(ctx, symbol: str):
     """Discord 指令：!analyze <股票代碼>"""
     await ctx.send(f"🔍 正在啟動分析模組，抓取 **{symbol.upper()}** 最新數據與 AI 推理中，請稍候...")
     
-    # 1. 抓取即時報價
     price = get_realtime_price(symbol)
-    
-    # 2. 生成 AI 報告
     report = generate_ai_report(symbol, price)
     
-    # 3. 發送到 Discord (如果報告太長，超過 Discord 的 2000 字元限制，需要分段)
     if len(report) > 1900:
         chunks = [report[i:i+1900] for i in range(0, len(report), 1900)]
         for chunk in chunks:
@@ -110,5 +104,4 @@ async def analyze(ctx, symbol: str):
     else:
         await ctx.send(report)
 
-# 啟動機器人
 bot.run(DISCORD_TOKEN)
