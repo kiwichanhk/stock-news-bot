@@ -2,4 +2,4 @@ discord.py
 requests
 python-dotenv
 longport
-flask
+
